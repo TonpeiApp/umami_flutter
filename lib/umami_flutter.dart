@@ -15,7 +15,8 @@ class Umami {
 
   /// Optionally set params if needed.
   String? _hostname;
-  String? _tag;
+  String? tag;
+  String? id;
 
   // Dynamically overrided value
   String? _url;
@@ -40,7 +41,8 @@ class Umami {
 
   /// Get current screen size as "widthxheight"
   String get _screenSize {
-    final size = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize /
+    final size =
+        WidgetsBinding.instance.platformDispatcher.views.first.physicalSize /
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
     return '${size.width.round()}x${size.height.round()}';
   }
@@ -51,11 +53,11 @@ class Umami {
     return locale.toLanguageTag();
   }
 
-  Map<String, dynamic> _getPayload() {
+  UmamiEventData _getPayload() {
     if (_endpoint == null || _websiteId == null) {
-      throw Exception("Umami().init(...) before tracking pageview")
+      throw Exception("Umami().init(...) before tracking pageview");
     }
-    final payload = <String, dynamic>{
+    final UmamiEventData payload = <String, dynamic>{
       'website': _websiteId,
       'screen': _screenSize,
       'language': _language,
@@ -63,6 +65,8 @@ class Umami {
       if (_hostname != null) 'hostname': _hostname,
       'url': _url,
       if (_referrer != null) 'referrer': _referrer,
+      if (tag != null) 'tag': tag,
+      if (id != null) 'id': id,
     };
     return payload;
   }
@@ -74,32 +78,26 @@ class Umami {
     final payload = _getPayload();
     debugPrint('Umami has recorded pageview with payload: $payload');
     _referrer = url;
-    await http.post(
-      Uri.parse('$_endpoint/api/send'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'type': 'event',
-        'payload': payload,
-      }),
-    );
+    _send(payload);
   }
 
   /// Track a custom event.
   Future<void> trackEvent(String name, {UmamiEventData? data}) async {
     if (_endpoint == null || _websiteId == null) return;
-    final payload = <String, dynamic>{
+    final UmamiEventData payload = <String, dynamic>{
       ..._getPayload(),
       'name': name,
       if (data != null) 'data': data,
     };
-    debugPrint('Umami trackEvent payload: $payload'); // Changed debugPrint for clarity
+    debugPrint('Umami trackEvent payload: $payload');
+    _send(payload);
+  }
+
+  Future<void> _send(UmamiEventData payload) async {
     await http.post(
       Uri.parse('$_endpoint/api/send'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'type': 'event',
-        'payload': payload,
-      }),
+      body: jsonEncode({'type': 'event', 'payload': payload}),
     );
   }
 }
