@@ -1,3 +1,4 @@
+import 'dart:async'; // Keep for Future
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
@@ -9,11 +10,16 @@ class Umami {
   factory Umami() => _instance;
   Umami._internal();
 
-  String? _endpoint;
-  String? _websiteId;
+  late final String? _endpoint;
+  late final String? _websiteId;
 
-  /// Optionally set hostname/referrer if needed.
+  /// Optionally set params if needed.
   String? _hostname;
+  String? _tag;
+
+  // Dynamically overrided value
+  String? _url;
+  String? _title;
   String? _referrer;
 
   void setHostname(String hostname) => _hostname = hostname;
@@ -45,41 +51,29 @@ class Umami {
     return locale.toLanguageTag();
   }
 
-  /// Track a pageview (called automatically if using [UmamiRouteObserver]).
-  Future<void> trackPageView(String url) async {
-    if (_endpoint == null || _websiteId == null) return;
+  Map<String, dynamic> _getPayload() {
+    if (_endpoint == null || _websiteId == null) {
+      throw Exception("Umami().init(...) before tracking pageview")
+    }
     final payload = <String, dynamic>{
       'website': _websiteId,
-      'url': url,
       'screen': _screenSize,
       'language': _language,
-      if (_referrer != null) 'referrer': _referrer,
+      if (_title != null) 'title': _title,
       if (_hostname != null) 'hostname': _hostname,
+      'url': _url,
+      if (_referrer != null) 'referrer': _referrer,
     };
-    await http.post(
-      Uri.parse('$_endpoint/api/send'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'type': 'pageview',
-        'payload': payload,
-      }),
-    );
+    return payload;
   }
 
-  /// Track a custom event.
-  Future<void> trackEvent(String name, {String? title, UmamiEventData? data, String? url}) async {
-    if (_endpoint == null || _websiteId == null) return;
-    final payload = <String, dynamic>{
-      'website': _websiteId,
-      'name': name,
-      if (title != null) 'title': title,
-      if (url != null) 'url': url,
-      'screen': _screenSize,
-      'language': _language,
-      if (_referrer != null) 'referrer': _referrer,
-      if (_hostname != null) 'hostname': _hostname,
-      if (data != null) 'data': data,
-    };
+  /// Track a pageview.
+  Future<void> trackPageView(String url, String? title) async {
+    _url = url;
+    _title = title;
+    final payload = _getPayload();
+    debugPrint('Umami has recorded pageview with payload: $payload');
+    _referrer = url;
     await http.post(
       Uri.parse('$_endpoint/api/send'),
       headers: {'Content-Type': 'application/json'},
@@ -90,21 +84,22 @@ class Umami {
     );
   }
 
-  /// Navigator observer for automatic pageview tracking.
-  NavigatorObserver get goRouterObserver => UmamiRouteObserver(this);
-}
-
-/// GoRouter observer to track page views automatically.
-class UmamiRouteObserver extends NavigatorObserver {
-  final Umami _umami;
-  UmamiRouteObserver(this._umami);
-
-  @override
-  void didPush(Route route, Route? previousRoute) {
-    final uri = route.settings.name ?? route.settings.arguments?.toString() ?? '';
-    if (uri.isNotEmpty) {
-      _umami.trackPageView(uri);
-    }
-    super.didPush(route, previousRoute);
+  /// Track a custom event.
+  Future<void> trackEvent(String name, {UmamiEventData? data}) async {
+    if (_endpoint == null || _websiteId == null) return;
+    final payload = <String, dynamic>{
+      ..._getPayload(),
+      'name': name,
+      if (data != null) 'data': data,
+    };
+    debugPrint('Umami trackEvent payload: $payload'); // Changed debugPrint for clarity
+    await http.post(
+      Uri.parse('$_endpoint/api/send'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'type': 'event',
+        'payload': payload,
+      }),
+    );
   }
 }

@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:umami_flutter/umami_flutter.dart';
 
 void main() {
-  test('adds one to input values', () {
-    final calculator = Calculator();
-    expect(calculator.addOne(2), 3);
-    expect(calculator.addOne(-7), -6);
-    expect(calculator.addOne(0), 1);
+  test('Umami instance should be a singleton', () {
+    final umami1 = Umami();
+    final umami2 = Umami();
+
+    expect(umami1, equals(umami2));
   });
 }
