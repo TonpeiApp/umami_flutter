@@ -16,12 +16,12 @@ class Umami {
   /// Optionally set params if needed.
   String? _hostname;
   String? tag;
-  String? id;
 
   // Dynamically overrided value
   String? _url;
   String? _title;
   String? _referrer;
+  String? _id;
 
   void setHostname(String hostname) => _hostname = hostname;
   void setReferrer(String referrer) => _referrer = referrer;
@@ -31,12 +31,10 @@ class Umami {
     required String endpoint,
     required String websiteId,
     String? hostname,
-    String? referrer,
   }) {
     _endpoint = endpoint;
     _websiteId = websiteId;
     _hostname = hostname;
-    _referrer = referrer;
   }
 
   /// Get current screen size as "widthxheight"
@@ -53,6 +51,11 @@ class Umami {
     return locale.toLanguageTag();
   }
 
+  void identify(String id) {
+    _id = id;
+    _sendIdendity({'data': _id});
+  }
+
   UmamiEventData _getPayload() {
     if (_endpoint == null || _websiteId == null) {
       throw Exception("Umami().init(...) before tracking pageview");
@@ -66,7 +69,7 @@ class Umami {
       'url': _url,
       if (_referrer != null) 'referrer': _referrer,
       if (tag != null) 'tag': tag,
-      if (id != null) 'id': id,
+      if (_id != null) 'id': _id,
     };
     return payload;
   }
@@ -78,7 +81,7 @@ class Umami {
     final payload = _getPayload();
     debugPrint('Umami has recorded pageview with payload: $payload');
     _referrer = url;
-    _send(payload);
+    _sendEvent(payload);
   }
 
   /// Track a custom event.
@@ -90,14 +93,19 @@ class Umami {
       if (data != null) 'data': data,
     };
     debugPrint('Umami trackEvent payload: $payload');
-    _send(payload);
+    _sendEvent(payload);
   }
 
-  Future<void> _send(UmamiEventData payload) async {
+  Future<void> _sendIdendity(UmamiEventData payload) =>
+      _send(payload, 'identify');
+
+  Future<void> _sendEvent(UmamiEventData payload) => _send(payload, 'event');
+
+  Future<void> _send(UmamiEventData payload, String type) async {
     await http.post(
       Uri.parse('$_endpoint/api/send'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'type': 'event', 'payload': payload}),
+      body: jsonEncode({'type': type, 'payload': payload}),
     );
   }
 }
