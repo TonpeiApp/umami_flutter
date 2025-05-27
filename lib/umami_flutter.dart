@@ -2,6 +2,7 @@ import 'dart:async'; // Keep for Future
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:go_router/go_router.dart';
 
 typedef UmamiEventData = Map<String, dynamic>;
 
@@ -107,5 +108,35 @@ class Umami {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'type': type, 'payload': payload}),
     );
+  }
+}
+
+class UmamiRouteListener {
+  final Umami _umami;
+  UmamiRouteListener(this._umami);
+
+  //put this method in router.dart to register the listener
+  void registerRouter(GoRouter? router) {
+    if (router == null) {
+      debugPrint(
+        "UMAMI: No router provided, skipping route listener registration.",
+      );
+      return;
+    }
+
+    router.routerDelegate.addListener(() {
+      final currentRoute = router.routerDelegate.currentConfiguration.last;
+      final url = currentRoute.matchedLocation;
+      final routeName = currentRoute.route.name ?? url;
+
+      debugPrint("routeMatch: $routeName, url: $url");
+      _trackRouteChange(url, routeName);
+    });
+    debugPrint("UMAMI: Registered route listener for router: $router");
+  }
+
+  void _trackRouteChange(String url, String title) {
+    debugPrint("UMAMI: Tracking route change: $url with name $title");
+    _umami.trackPageView(url, title);
   }
 }
