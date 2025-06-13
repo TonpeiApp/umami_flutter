@@ -89,7 +89,6 @@ class Umami {
     if (_endpoint == null || _websiteId == null) {
       throw Exception("Umami().init(...) before tracking pageview");
     }
-    // final userAgent = await _userAgent;
     final UmamiEventData payload = <String, dynamic>{
       'website': _websiteId,
       'screen': _screenSize,
@@ -117,10 +116,8 @@ class Umami {
   /// Track a custom event.
   Future<void> trackEvent(String name, {UmamiEventData? data}) async {
     if (_endpoint == null || _websiteId == null) return;
-    final basePayload = _getPayload();
     final UmamiEventData payload = <String, dynamic>{
-      ...basePayload,
-      // ..._getPayload(),
+      ..._getPayload(),
       'name': name,
       if (data != null) 'data': data,
     };
