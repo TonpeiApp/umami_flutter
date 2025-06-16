@@ -146,13 +146,10 @@ class UmamiRouteListener {
   final Umami _umami;
   UmamiRouteListener(this._umami);
 
-  //put this method in router.dart to register the listener
+  //put this method in dart file that defines the router to register the listener
   void registerRouter(GoRouter? router) {
     if (router == null) {
-      debugPrint(
-        "UMAMI: No router provided, skipping route listener registration.",
-      );
-      return;
+      throw Exception("Umami().registerRouter() requires a GoRouter instance");
     }
 
     router.routerDelegate.addListener(() {
