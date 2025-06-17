@@ -68,8 +68,8 @@ class Umami {
 
   /// Get current screen size as "widthxheight"
   String get _screenSize {
-    final size =
-        WidgetsBinding.instance.platformDispatcher.views.first.physicalSize /
+    final size = WidgetsBinding
+            .instance.platformDispatcher.views.first.physicalSize /
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
     return '${size.width.round()}x${size.height.round()}';
   }
@@ -144,23 +144,41 @@ class Umami {
 
 class UmamiRouteListener {
   final Umami _umami;
+  GoRouter? _router;
+  VoidCallback? _routeListener;
   UmamiRouteListener(this._umami);
 
   //put this method in dart file that defines the router to register the listener
-  void registerRouter(GoRouter? router) {
-    if (router == null) {
-      throw Exception("Umami().registerRouter() requires a GoRouter instance");
+  void registerRouter(GoRouter router) {
+    dispose();
+
+    _routeListener = () {
+      try {
+        final configuration = router.routerDelegate.currentConfiguration;
+        if (configuration.isEmpty) return;
+
+        final currentRoute = configuration.last;
+        final url = currentRoute.matchedLocation;
+        final routeName = currentRoute.route.name ?? url;
+
+        _trackRouteChange(url, routeName);
+      } catch (e) {
+        debugPrint("UMAMI: Error tracking route change: $e");
+      }
+    };
+
+    router.routerDelegate.addListener(_routeListener!);
+    debugPrint("UMAMI: Registered route listener");
+  }
+
+  void dispose() {
+    if (_router != null && _routeListener != null) {
+      _router!.routerDelegate.removeListener(_routeListener!);
+      _routeListener = null;
+      _router = null;
+
+      debugPrint("UMAMI: Disposed route listener");
     }
-
-    router.routerDelegate.addListener(() {
-      final currentRoute = router.routerDelegate.currentConfiguration.last;
-      final url = currentRoute.matchedLocation;
-      final routeName = currentRoute.route.name ?? url;
-
-      debugPrint("routeMatch: $routeName, url: $url");
-      _trackRouteChange(url, routeName);
-    });
-    debugPrint("UMAMI: Registered route listener for router: $router");
   }
 
   void _trackRouteChange(String url, String title) {
