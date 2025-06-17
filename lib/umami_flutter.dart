@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 typedef UmamiEventData = Map<String, dynamic>;
 
@@ -36,6 +39,31 @@ class Umami {
     _endpoint = endpoint;
     _websiteId = websiteId;
     _hostname = hostname;
+  }
+
+  Future<String> get _userAgent async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    try {
+      if (kIsWeb) {
+        final webBrowserInfo = await deviceInfo.webBrowserInfo;
+        return webBrowserInfo.userAgent ?? 'unknown';
+      }
+
+      final platformInfo = await deviceInfo.deviceInfo;
+      final packageInfo = await PackageInfo.fromPlatform();
+
+      if (platformInfo is AndroidDeviceInfo) {
+        return '${packageInfo.appName}/${packageInfo.version} (Linux; Android ${platformInfo.version.release}; ${platformInfo.model})';
+      } else if (platformInfo is IosDeviceInfo) {
+        return '${packageInfo.appName}/${packageInfo.version} (iPhone; CPU iPhone OS ${platformInfo.systemVersion.replaceAll('_', '.')})';
+      } else {
+        return '${packageInfo.appName}/${packageInfo.version} (${platformInfo.runtimeType})';
+      }
+    } catch (e) {
+      debugPrint('Error getting user agent: $e');
+      return 'unknown';
+    }
   }
 
   /// Get current screen size as "widthxheight"
@@ -105,7 +133,10 @@ class Umami {
   Future<void> _send(UmamiEventData payload, String type) async {
     await http.post(
       Uri.parse('$_endpoint/api/send'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'user-agent': await _userAgent,
+      },
       body: jsonEncode({'type': type, 'payload': payload}),
     );
   }
@@ -115,13 +146,10 @@ class UmamiRouteListener {
   final Umami _umami;
   UmamiRouteListener(this._umami);
 
-  //put this method in router.dart to register the listener
+  //put this method in dart file that defines the router to register the listener
   void registerRouter(GoRouter? router) {
     if (router == null) {
-      debugPrint(
-        "UMAMI: No router provided, skipping route listener registration.",
-      );
-      return;
+      throw Exception("Umami().registerRouter() requires a GoRouter instance");
     }
 
     router.routerDelegate.addListener(() {
